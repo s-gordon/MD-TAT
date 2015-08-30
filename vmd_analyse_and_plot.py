@@ -165,7 +165,7 @@ residue level.
     dir_list = "../.dir_list.txt"
 
     # Path to directory containing VMD tcl scripts we need to use later
-    script_dir = "../Scripts/Analysis_Scripts"
+    script_dir = "./tcl_scipts"
 
     # shell command to call vmd in CLI mode
     vmd_cmd = 'vmd -dispdev text'
