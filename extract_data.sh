@@ -5,7 +5,6 @@
 #           <main>/Scripts/Analysis_Scripts/a1_extract_all_data
 #           This will extract and collate all jobs in the job directories under ../MainJob_dir 
 # CREATED:  2014-10-27 22:43:42
-# MODIFIED: 2014-10-27 22:43:42
 
-vmd -dispdev text -e ../Scripts/Analysis_Scripts/a1_extract_all_dcd_data.tcl >/dev/null
-../Scripts/Analysis_Scripts/a1_extract_all_dcd_data
+vmd -dispdev text -e tcl_scipts/a1_extract_all_dcd_data.tcl >/dev/null
+tcl_scipts/a-1_extract_all_dcd_data

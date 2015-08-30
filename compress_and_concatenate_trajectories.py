@@ -22,23 +22,25 @@ class MyParser(argparse.ArgumentParser):
         self.print_help()
         sys.exit(2)
 
-parser = MyParser(
-            description="""
-                        Analysis script part 2. Concatenates DCD trajectory
-                        files under ./MainJob_dir into a single, reduced
-                        trajectory file. Files are named sequentially from
-                        no_water_<n>.dcd where <n> is the replicate number.
-                        The bulk of the work is delegated to CATDCD, found
-                        under ../Scripts/Tools/.""",
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = MyParser(description="""
+Analysis script part 2. Concatenates DCD trajectory
+files under ./MainJob_dir into a single, reduced
+trajectory file. Files are named sequentially from
+no_water_<n>.dcd where <n> is the replicate number.
+The bulk of the work is delegated to CATDCD, found
+under ./Tools/.
+                  """,
+                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument('-v', '--verbose', action="store_true",
-                    help="Increase verbosity")
+                    help="""
+Increase verbosity
+                    """)
 parser.add_argument('-s', '--stride', type=int, default=1,
                     help="""
-                         Factor to sub-sample the trajectories by. e.g. For -s
-                         10, we would only save one of every 10 frames.
-                         """)
+Factor to sub-sample the trajectories by. e.g. For -s
+10, we would only save one of every 10 frames.
+                    """)
 
 result = parser.parse_args()
 
@@ -107,10 +109,10 @@ def parse_num_frames(prefix, i, catdcd):
 
 
 def run_command(command):
-        p = subprocess.Popen(command, shell=True,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT)
-        return p.communicate()
+    p = subprocess.Popen(command, shell=True,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT)
+    return p.communicate()
 
 
 def check_cmd(cmd):
@@ -132,7 +134,7 @@ def make_dir(dir):
         os.makedirs(dir)
 
 dcdfile_list = glob.glob('dcdfile_list_*.txt')
-catdcd = '../Scripts/Tools/catdcd'
+catdcd = './Tools/catdcd'
 
 dir_list = []
 with open('../.dir_list.txt') as dir:
