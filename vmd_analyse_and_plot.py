@@ -14,6 +14,14 @@ import subprocess
 import shutil
 from glob import glob
 
+
+class ShellCommands:
+    def __init__(self):
+        self.vmd = 'vmd -dispdev text'
+
+    def __vmd__(self):
+        return self.vmd
+
 # Pyplot formatting bits
 
 
@@ -167,8 +175,8 @@ residue level.
     # Path to directory containing VMD tcl scripts we need to use later
     script_dir = "./tcl_scipts"
 
-    # shell command to call vmd in CLI mode
-    vmd_cmd = 'vmd -dispdev text'
+    # initialize shell command class
+    c = ShellCommands()
 
     # }}}
 
@@ -199,7 +207,7 @@ residue level.
             for replicate in sub_dirs:
                 command_catch_error(
                     '{vmd} -e {script} -args no_water_{rep}.dcd {data_dir} \
-                    {align_sel}'.format(vmd=vmd_cmd, script=a,
+                    {align_sel}'.format(vmd=c.vmd, script=a,
                                         rep=replicate, data_dir=data_dir,
                                         align_sel=args['align_sel']))
 
