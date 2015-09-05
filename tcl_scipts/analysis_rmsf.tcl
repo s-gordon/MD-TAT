@@ -1,9 +1,7 @@
 #!/usr/bin/env tclsh
 # AUTHOR:   Shane Gordon
-# FILE:     analysis_rmsf.tcl
 # ROLE:     TODO (some explanation)
 # CREATED:  2015-06-18 20:43:31
-# MODIFIED: 2015-07-12 10:59:46
 
 # BASIC USAGE 
 
@@ -16,6 +14,24 @@
 #   name)
 #   <out-dir> is the directory into which the output data file will be moved
 #   <sel> is an optional atom selection to be used for alignment
+#
+# You may run this script from within VMD, but first you will need to define a
+# proc to allow sourcing with args. e.g. (taken from http://wiki.tcl.tk/10025):
+#
+#   proc src {file args} {
+#     set argv $::argv
+#     set argc $::argc
+#     set ::argv $args
+#     set ::argc [llength $args]
+#     set code [catch {uplevel [list source $file]} return]
+#     set ::argv $argv
+#     set ::argc $argc
+#     return -code $code $return
+#   }
+#
+# Then from tclsh:
+#   
+#   src <script.tcl> arg1 arg2 arg3
 
 # VARIABLES --------------------------------------------------------------- {{{
 
