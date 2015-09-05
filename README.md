@@ -1,43 +1,43 @@
-# NAMD Analysis job directory notes.
+# Molecular Dynamics Trajectory Analysis Tools (MD-TAT)
 
-**v0.2**
-**January 2015**
-**Author: MKuiper (VLSCI) and Shane Gordon (La Trobe University)**
+## Version
 
-# Disclaimer!
+Beta 0.10
+
+## Introduction and Foreword
 
 You are free to use it, but it may not be entirely suitable for what you are
 trying to achieve. Please email feedback, bugs or suggestions to:
-<a href="mailto:mkuiper@unimelb.edu.au">mkuiper@unimelb.edu.au</a> or
-<a href="mailto:se2gordon@students.latrobe.edu.au">se2gordon@students.latrobe.edu.au</a>
+<a href="mailto:se2gordon@students.latrobe.edu.au">se2gordon@students.latrobe.edu.au</a>.
 
-# How it all works
+## Dependencies
 
-The `/Analysis` directory is designed to be used at the completion of a run as a
-place to consolidate data and process the trajectory data.
+* Python (v2.7+)
+* VMD (1.9.1+). This must be incorporated into your `$PATH` variable for
+    `extract_data.sh` and `vmd_analyse_and_plot.py` to work properly.
 
-There are a number of sub_directories and scripts here to help you do this:
+## How it all works
 
-```sh
-/Data
-/temp_data_dir
-/Scripts
-/protein_cluster_data
-/ligand_cluster_data
+This project directory is designed to be used at the completion of a run as a
+place to consolidate and process trajectory data generated using the workflow
+MD\_workflow [here](https://github.com/s-gordon/MD_workflow/tree/pythonic). This
+must be cloned **under** the top directory of MD_workflow for everything to work
+properly.
 
-- a1_extract_all_my_data.sh       - script to extract paths to dcd data in
-/MainJob_dir
+Trajectory processing and analysis are divided into three main phases divided
+into three independent scripts: `extract_data.sh`,
+`compress_and_concatenate_trajectories.py`, and `vmd_analyse_and_plot.py`. The
+order in which these scripts are run is critical.
 
-- a2_create_no_H_no_H2O_dcd.sh    - script to create a greatly reduced data
-file containing not water or hydrogen.
+1. `extract_data.sh`
 
-- a3_protein_backbone_cluster_analysis.sh
+1. `compress_and_concatenate_trajectories.py`: Additional options, such as
+   trajectory sub-sampling (a.k.a. stride) can be passed as optional arguments.
+   For more information try `./compress_and_concatenate_trajectories.py --help`.
 
+1. `vmd_analyse_and_plot.py`: Options can be passed as arguments. For more
+   information try `./vmd_analyse_and_plot.py --help`.
 
-- a4_ligand_cluster_analysis.sh
+## Authorship
 
-- clustering_configuration.tcl   - configuration script for analysis.
-```
-
-The scripts above are designed to be run in order,  a1_, a2_, ..etc but certain
-analysis can be omitted if necessary.
+* Shane Gordon (<a href="mailto:se2gordon@students.latrobe.edu.au">se2gordon@students.latrobe.edu.au</a>)
