@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # AUTHOR:   Shane Gordon
-# FILE:     a1_other_analyses.py
-# ROLE:     TODO (some explanation)
 # CREATED:  2015-06-16 21:46:32
-# MODIFIED: 2015-06-22 08:29:07
 
 import os
 import sys
@@ -133,7 +130,7 @@ def make_dir(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
 
-dcdfile_list = glob.glob('dcdfile_list_*.txt')
+dcdfile_list = glob('dcdfile_list_*.txt')
 catdcd = './Tools/catdcd'
 
 dir_list = []
@@ -143,11 +140,13 @@ with open('../.dir_list.txt') as dir:
 
 for l in sorted(dcdfile_list):
         dir = l.rstrip('\n')
-        i = subprocess.check_output(
-                        "echo {0} | sed 's/.*_//' | sed 's/\.*//' | \
-                                        sed 's/\.[^.]*$//'".format(dir),
-                        shell=True)
-        i = i.replace('\n', '')
+        prefix = os.path.splitext(l)[0]
+        # This is multi step.
+        # We want to extract just the index number from the dcdfile_list of
+        # interest (format <leader>_<index>.txt).
+        # To do this, first split out the file extension, then the leader,
+        # finally discard the newline character with rstrip.
+        i = os.path.splitext(l)[0].split(".")[-1].split("_")[-1].rstrip()
         iter = 0
         with open(l) as f:
                 for dcd in f:
@@ -166,8 +165,8 @@ for l in sorted(dcdfile_list):
                 run_command('{0} -otype dcd -stride {2} -o no_water_{1}.dcd \
                         -dcd {1}_temp_????.dcd'.format(
                             catdcd, i, result.stride))
-                if glob.glob('{0}_temp_*.dcd'.format(i)):
-                        for idcd in glob.glob('{0}_temp_*.dcd'.format(i)):
+                if glob('{0}_temp_*.dcd'.format(i)):
+                        for idcd in glob('{0}_temp_*.dcd'.format(i)):
                                 delete_file(idcd)
                 try:
                         parse_num_frames('no_water', i, catdcd)
