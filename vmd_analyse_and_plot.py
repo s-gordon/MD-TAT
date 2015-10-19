@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # AUTHOR:       Shane Gordon
-# ROLE:         TODO (some explanation)
 # CREATED:      2015-06-16 21:46:32
 
 import matplotlib.pyplot as plt
@@ -11,12 +10,57 @@ import logging
 import argparse
 import subprocess
 import shutil
+import mdtraj as md
 from glob import glob
+plt.style.use('ggplot')
 
 
 class ShellCommands:
     def __init__(self, cmd):
         self.run = cmd
+
+
+def md_rmsd(prefix='rmsd', *args):
+    a = []
+    sel = 'name CA'
+    for arg in args:
+        for t in arg:
+            atom_indices = t.topology.select(sel)
+            a.append(md.rmsd(t, t, 0, atom_indices=atom_indices))
+    count = 0
+    for row in a:
+        count += 1
+        f = prefix + '{:0>3d}.txt'.format(count)
+        np.savetxt(f, row, delimiter=',')
+    return a
+
+
+def md_rg(prefix='rg', *args):
+    a = []
+    for arg in args:
+        for t in arg:
+            a.append(md.compute_rg(t))
+    count = 0
+    for row in a:
+        count += 1
+        f = prefix + '{:0>3d}.txt'.format(count)
+        np.savetxt(f, row, delimiter=',')
+    return a
+
+
+def sasa(*args):
+    a = []
+    for t in args:
+        sasa = md.shrake_rupley(t)
+        a.append(sasa.sum(axis=1))
+    return a
+
+
+def ss(*args):
+    a = []
+    for t in args:
+        a.append(md.compute_dssp(t, simplified=True))
+    return a
 
 
 class DataDirs:
@@ -29,33 +73,10 @@ class DataDirs:
         self.plots = plots
 
 
-# Pyplot formatting bits
-
-
 def init_plotting():
 
     plt.rcParams['figure.figsize'] = (8, 3)
     plt.rcParams['figure.autolayout'] = True
-    plt.rcParams['axes.linewidth'] = 1
-    plt.rcParams['xtick.major.width'] = 1
-    plt.rcParams['ytick.major.width'] = 1
-    plt.rcParams['xtick.direction'] = 'in'
-    plt.rcParams['ytick.direction'] = 'in'
-    plt.rcParams['xtick.major.size'] = 3
-    plt.rcParams['xtick.minor.size'] = 3
-    plt.rcParams['ytick.major.size'] = 3
-    plt.rcParams['ytick.minor.size'] = 3
-    plt.rcParams['xtick.labelsize'] = 10
-    plt.rcParams['ytick.labelsize'] = 10
-    plt.rcParams['font.sans-serif'] = 'Arial'
-    plt.rcParams['axes.labelsize'] = 12
-    plt.rcParams['lines.linewidth'] = 0.5
-    plt.rcParams['legend.loc'] = 'center right'
-    plt.rcParams['legend.fontsize'] = 6
-    plt.gca().spines['right'].set_color('none')
-    plt.gca().spines['top'].set_color('none')
-    plt.gca().xaxis.set_ticks_position('bottom')
-    plt.gca().yaxis.set_ticks_position('left')
 
 
 def check_dict(dict):
@@ -162,6 +183,10 @@ Calculate and plot residue psi angles for each trajectory.
 useful for measuring structural perturbations at the
 residue level.
                         """)
+    parser.add_argument('--ss',  action="store_true", default=False,
+                        help="""
+Sec struc.
+                        """)
 
     # Argument strings are accessed through the argparser 'args'
     args = vars(parser.parse_args())
@@ -198,48 +223,54 @@ residue level.
     # how many times other subroutines need to run. This could be better.
     dir_list = "../.dir_list.txt"
 
-    # initialize shell commands
-    vmd = ShellCommands('vmd -dispdev text')
-
-    # }}}
-
-    # Run VMD analyses
-    res = {
-        args['rmsd']: "{0}/analysis_rmsd.tcl".format(out_dir.tcl),
-        args['rmsf']: "{0}/analysis_rmsf.tcl".format(out_dir.tcl),
-        args['sasa']: "{0}/analysis_sasa.tcl".format(out_dir.tcl),
-        args['rsasa']: "{0}/analysis_rsasa.tcl".format(out_dir.tcl),
-        args['rg']: "{0}/analysis_rg.tcl".format(out_dir.tcl),
-        args['dccm']: "{0}/analysis_dccm.tcl".format(out_dir.tcl),
-        args['phi']: "{0}/analysis_phi.tcl".format(out_dir.tcl),
-        args['psi']: "{0}/analysis_psi.tcl".format(out_dir.tcl)
-    }
-
-    # if check_dict(res) is not True:
-    #     """
-    #     """
-    #     sys.exit(2)
-
-    sub_dirs = get_dirs(dir_list)
+    sims = get_dirs(dir_list)
 
     # Checks
     for f in [dir_list]:
         check_file(f)
-    make_dir(out_dir.data)
-    for r in sub_dirs:
-        dname = '{parent}/sim_{rep}'.format(parent=out_dir.data, rep=r)
-        make_dir(dname)
 
-    for r, a in res.iteritems():
-        if r is True:
-            for replicate in sub_dirs:
-                command_catch_error(
-                    '{vmd} -e {script} -args no_water_{rep}.dcd {data_dir} \
-                    {align_sel}'.format(vmd=vmd.run, script=a,
-                                        rep=replicate, data_dir=out_dir.data,
-                                        align_sel=args['align_sel']))
+    rmsd, rg = ([] for i in range(2))
 
-    # If plot is set to true, attempt to plot output data using matplotlib.
+    top = 'no_water.pdb'
+    tfile = ['no_water_{i}.dcd'.format(i=i) for i in sims]
+    t = [md.load(traj, top=top) for traj in tfile]
+
+    if any([
+            args['rmsd'],
+            args['rg']
+    ]) is True:
+        make_dir(out_dir.data)
+        o = out_dir.data
+
+        if args['rmsd'] is True:
+            outfile = '{dir}/rmsd'.format(dir=o)
+            rmsd = md_rmsd(outfile, t)
+
+        if args['rg'] is True:
+            outfile = '{dir}/rg'.format(dir=o)
+            rg = md_rg(outfile, t)
+
+    plot = {
+        'rg': {
+            'arg': 'rg',
+            'array': rg,
+            'outfile': 'rg.txt',
+            'xlabel': 'Frame No.',
+            'ylabel': 'R$_g$ (nm)',
+            'ymin': 0,
+            'ofile': 'rg.pdf'
+        },
+        'rmsd': {
+            'arg': 'rmsd',
+            'array': rmsd,
+            'outfile': 'rmsd.txt',
+            'xlabel': 'Frame No.',
+            'ylabel': 'RMSD (nm)',
+            'ymin': 0,
+            'ofile': 'rmsd.pdf'
+        }
+    }
+
     if args['plot'] is False:
         logging.debug("""
 Optional plotting defaulting to False. Plot output
@@ -249,120 +280,58 @@ using the '--plot' flag.
         logging.debug("""
 Optional plotting set to True.
                       """)
-
         make_dir(out_dir.plots)
-        for r in sub_dirs:
-            dname = '{parent}/sim_{rep}'.format(parent=out_dir.plots, rep=r)
-            make_dir(dname)
-
-        # Load matplotlib params
-        init_plotting()
-
-        # Iterate over each replicate simulation and plot data is found
-        for replicate in sub_dirs:
-            out_d = "{0}/sim_{1}".format(out_dir.plots, replicate)
-
-            try:
-                rg_dict = {
-                    'fname': '\
-                    {0}/sim_{1}/protein_radius_gyration_{1}.txt'.format(
-                        out_dir.data, replicate),
-                    'xlabel': 'Simulation time (ns)',
-                    'ylabel': 'R$_g$ ($\AA$)',
-                    'ymin': 0,
-                    'ofile': '{0}/rg_plot_{1}'.format(out_d, replicate)
-                }
-                rmsd_dict = {
-                    'fname':
-                    '{0}/sim_{1}/rmsd_protein_{1}.txt'.format(
-                        out_dir.data, replicate),
-                    'xlabel': 'Simulation time (ns)',
-                    'ylabel': 'RMSD ($\AA$)',
-                    'ymin': 0,
-                    'ofile': '{0}/rmsd_plot_{1}'.format(out_d, replicate)
-                }
-                rmsf_dict = {
-                    'fname': '{0}/sim_{1}/rmsf_protein_backbone'.format(
-                        out_dir.data, replicate),
-                    'all_avg':
-                    '{0}/sim_{1}/rmsf_all_protein_backbone'.format(
-                        out_dir.data, replicate),
-                    'xlabel': 'Residue No.',
-                    'ylabel': 'RMSF ($\AA$)',
-                    'ymin': 0,
-                    'ymax': 10,
-                    'ofile': '{0}/rmsf_plot_{1}'.format(out_d, replicate)
-                }
-                sasa_dict = {
-                    'fname': '{0}/sim_{1}/protein_sasa_{1}.txt'.format(
-                        out_dir.data, replicate),
-                    'xlabel': 'Simulation time (ns)',
-                    'ylabel': 'Solvent-accessible surface area ($\AA^2$)',
-                    'ymin': 0,
-                    'ofile': '{0}/sasa_plot_{1}'.format(out_d, replicate)
-                }
-                rsasa_dict = {
-                    'fname': '{0}/sim_{1}/protein_sasa_{1}.txt'.format(
-                        out_dir.data, replicate),
-                    'xlabel': 'Simulation time (ns)',
-                    'ylabel': 'Solvent-accessible surface area ($\AA^2$)',
-                    'ymin': 0,
-                    'ofile': '{0}/sasa_plot_{1}'.format(out_d, replicate)
-                }
-
-                # If true, plot rmsd, sasa, and radius of gyrations data
-                for p in [rmsd_dict, sasa_dict, rg_dict, rsasa_dict]:
-                    basic_plot(p)
-
-                # For each replicate, plot fractional rmsf values and total
-                # rmsf values
-                rmsf_shared_axis(rmsf_dict, out_d)
-
-            except OSError as e:
-                logging.error(e)
+        d = out_dir.plots
+        for key, value in plot.iteritems():
+            if args[value['arg']] is True:
+                data = value['array']
+                xlabel = value['xlabel']
+                ylabel = value['ylabel']
+                f = '{root}/{f}'.format(root=d, f=value['ofile'])
+                basic_plot(data, xlabel, ylabel, f)
 
 
 def check_dir(dir):
-        """
-        Check whether directory dir exists.
-        If true continue. Else exit.
-        """
-        if not os.path.isdir(dir):
-                logging.error('Path %s not found', dir)
-                logging.error('Aborting')
-                sys.exit()
+    """
+    Check whether directory dir exists.
+    If true continue. Else exit.
+    """
+    if not os.path.isdir(dir):
+        logging.error('Path %s not found', dir)
+        logging.error('Aborting')
+        sys.exit()
 
 
 def check_file(file):
-        """
-        Check whether directory dir exists.
-        If true continue. Else exit.
-        """
-        if not os.path.isfile(file):
-                logging.error('Path %s not found', file)
-                logging.error('Aborting')
-                sys.exit()
+    """
+    Check whether directory dir exists.
+    If true continue. Else exit.
+    """
+    if not os.path.isfile(file):
+        logging.error('Path %s not found', file)
+        logging.error('Aborting')
+        sys.exit()
 
 
 def delete_dir(dir):
-        """
-        Check whether directory dir exists.
-        If true delete and remake.
-        """
-        if os.path.exists(dir):
-                shutil.rmtree(dir)
-                logging.debug("Directory {0} found.\nRemoving {0}".format(dir))
+    """
+    Check whether directory dir exists.
+    If true delete and remake.
+    """
+    if os.path.exists(dir):
+        shutil.rmtree(dir)
+        logging.debug("Directory {0} found.\nRemoving {0}".format(dir))
         os.makedirs(dir)
 
 
 def check_cmd(cmd):
-        try:
-                subprocess.check_call(['%s' % cmd], shell=True)
-        except subprocess.CalledProcessError:
-                pass  # handle errors in the called executable
-        except OSError:
-                logging.error('Command %s not found' % cmd)
-                sys.exit()
+    try:
+        subprocess.check_call(['%s' % cmd], shell=True)
+    except subprocess.CalledProcessError:
+        pass  # handle errors in the called executable
+    except OSError:
+        logging.error('Command %s not found' % cmd)
+        sys.exit()
 
 
 def make_dir(dir):
@@ -401,43 +370,52 @@ def get_dirs(dirlist):
     with open(dirlist) as f:
         for line in f:
             line = line.rstrip('\n')
-            i = subprocess.check_output(
-                "echo {0} | sed 's/.*_//' | sed 's/\.*//'".format(line),
-                shell=True)
-            i = i.replace('\n', '')
-            sub_dirs.append(i)
-            logging.debug('Subdirectory indices are %s' % i)
+            line = os.path.splitext(line)[-1].split(".")[-1]
+            line = line.replace('\n', '')
+            sub_dirs.append(line)
+            logging.debug('Subdirectory indices are {index}'
+                          .format(index=line))
     return sub_dirs
 
 
-def basic_plot(proc):
-    if os.path.isfile(proc['fname']):
-        logging.debug("Plotfile {f} found. Attempting to plot using matplotlib"
-                      .format(f=proc['fname']))
-        data = np.loadtxt(proc['fname'])
-        plt.subplot(111)
-        plt.xlabel(proc['xlabel'])
-        plt.ylabel(proc['ylabel'])
-        plt.plot(data[:, 0]/10, data[:, 1, ], lw=2)
-        plt.ylim(proc['ymin'])
-        plt.savefig('{ofile}.pdf'.format(ofile=proc['ofile']))
-        plt.close()
+def autocorr(x):
+    "Compute an autocorrelation with numpy"
+    x = x - np.mean(x)
+    result = np.correlate(x, x, mode='full')
+    result = result[result.size//2:]
+    return result / result[0]
+
+
+def basic_plot(data, xlabel, ylabel, output):
+    logging.debug('Attempting to plot to %s' % output)
+    f, ax = plt.subplots(2)
+    count = np.arange(0, len(data))
+    for row, i in zip(data, count):
+        logging.debug(len(row))
+        ax[0].set_xlabel(xlabel)
+        ax[0].set_ylabel(ylabel)
+        ax[0].plot(row, label=i)
+        ax[0].set_ylim(0,)
+        ax[0].legend()
+        ax[1].set_xlabel(xlabel)
+        ax[1].set_ylabel('ACF')
+        ax[1].semilogx(autocorr(row), label=i)
+        ax[1].legend()
+    plt.savefig(output, format='pdf', bbox_inches='tight')
+    plt.close()
 
 
 def rmsf_shared_axis(d, out):
     if glob('{fn}*'.format(fn=d['fname'])):
         a = [i for i in sorted(glob('{fn}*'.format(fn=d['fname'])))]
-        n = len(a)
         count = 1
-        color = iter(plt.cm.Blues(np.linspace(0, 1, n)))
         for f in a:
             if os.path.isfile(f):
-                c = next(color)
                 o = os.path.splitext(f)[0]
                 data = np.loadtxt('{o}.txt'.format(o=o))
                 path, prefix = os.path.split('{o}.txt'.format(o=o))
                 ax = plt.subplot(111)
-                plt.plot(data[:, 0], data[:, 1, ], c=c,
+                plt.plot(data[:, 0], data[:, 1, ],
                          label='Fraction {count} of 5'.format(count=count))
                 count = count+1
     if glob('{fn}*'.format(fn=d['all_avg'])):
