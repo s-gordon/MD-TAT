@@ -10,57 +10,14 @@ import logging
 import argparse
 import subprocess
 import shutil
-import mdtraj as md
-from glob import glob
+from mdtat.analysis.rmsd import compute_rmsd
+from mdtat.analysis.rg import compute_rg
 plt.style.use('ggplot')
 
 
 class ShellCommands:
     def __init__(self, cmd):
         self.run = cmd
-
-
-def md_rmsd(prefix='rmsd', *args):
-    a = []
-    sel = 'name CA'
-    for arg in args:
-        for t in arg:
-            atom_indices = t.topology.select(sel)
-            a.append(md.rmsd(t, t, 0, atom_indices=atom_indices))
-    count = 0
-    for row in a:
-        count += 1
-        f = prefix + '{:0>3d}.txt'.format(count)
-        np.savetxt(f, row, delimiter=',')
-    return a
-
-
-def md_rg(prefix='rg', *args):
-    a = []
-    for arg in args:
-        for t in arg:
-            a.append(md.compute_rg(t))
-    count = 0
-    for row in a:
-        count += 1
-        f = prefix + '{:0>3d}.txt'.format(count)
-        np.savetxt(f, row, delimiter=',')
-    return a
-
-
-def sasa(*args):
-    a = []
-    for t in args:
-        sasa = md.shrake_rupley(t)
-        a.append(sasa.sum(axis=1))
-    return a
-
-
-def ss(*args):
-    a = []
-    for t in args:
-        a.append(md.compute_dssp(t, simplified=True))
-    return a
 
 
 class DataDirs:
@@ -124,68 +81,11 @@ Calculate and plot root-mean squared deviation of selection backbone over the
 time course of the simulation. Useful for measuring structure equilibration.
                         """)
 
-    parser.add_argument('-s', '--selection', default='protein', help="""
-Protein selection to use in analyses. Must be a valid selection. At present,
-there are no explicit checks for making sure what you pass is valid. Very
-fragile!
-                        """)
-
-    parser.add_argument('--align_sel', default='protein and name CA',
-                        help="""
-Optional selection to use for protein alignment, if
-applicable. Currently there are no sanity checks for this,
-so assume that it is very fragile.Syntax documentation
-for VMD selections can be found here:
-ks.uiuc.edu/Research/vmd/vmd-1.2/ug/vmdug_node137.html
-                        """)
-
-    parser.add_argument('--rmsf', action="store_true", default=False, help="""
-RMSF
-                        """)
-
-    parser.add_argument('--sasa',  action="store_true", default=False, help="""
-Calculate and plot solvent-accessible surface area (SASA)
-of selection over the time course of the trajectory. Useful
-for measuring changes in protein interfaces.
-Computationally intensive.
-                        """)
-
-    parser.add_argument('--rsasa',  action="store_true", default=False,
-                        help="""
-Residue-level SASA.
-                        """)
-
     parser.add_argument('--rg',  action="store_true", default=False,
                         help="""
 Calculate and plot radius of gyration of selection over the
 time course of the trajectory. Useful for measuring
 structural changes
-                        """)
-
-    parser.add_argument('--dccm',  action="store_true", default=False,
-                        help="""
-Calculate and plot dynamic cross-correlation matrices
-(DCCMs) for each trajectory. Useful for measuring
-interaction networks within a structure (both positive and
-negative).
-                        """)
-
-    parser.add_argument('--phi',  action="store_true", default=False,
-                        help="""
-Calculate and plot residue phi angles for each trajectory.
-useful for measuring structural perturbations at the
-residue level.
-                        """)
-
-    parser.add_argument('--psi',  action="store_true", default=False,
-                        help="""
-Calculate and plot residue psi angles for each trajectory.
-useful for measuring structural perturbations at the
-residue level.
-                        """)
-    parser.add_argument('--ss',  action="store_true", default=False,
-                        help="""
-Sec struc.
                         """)
 
     # Argument strings are accessed through the argparser 'args'
@@ -233,7 +133,6 @@ Sec struc.
 
     top = 'no_water.pdb'
     tfile = ['no_water_{i}.dcd'.format(i=i) for i in sims]
-    t = [md.load(traj, top=top) for traj in tfile]
 
     if any([
             args['rmsd'],
@@ -243,18 +142,27 @@ Sec struc.
         o = out_dir.data
 
         if args['rmsd'] is True:
-            outfile = '{dir}/rmsd'.format(dir=o)
-            rmsd = md_rmsd(outfile, t)
+            rmsd = []
+            outfile = '{dir}/rmsd.txt'.format(dir=o)
+            for traj in tfile:
+                data = compute_rmsd(traj, top)
+                rmsd.append(data)
+            with open(outfile, 'w') as f:
+                f.write("\n".join(" ".join(map(str, x)) for x in (rmsd)))
 
         if args['rg'] is True:
-            outfile = '{dir}/rg'.format(dir=o)
-            rg = md_rg(outfile, t)
+            rg = []
+            outfile = '{dir}/rg.txt'.format(dir=o)
+            for traj in tfile:
+                data = compute_rg(traj, top)
+                rg.append(data)
+            with open(outfile, 'w') as f:
+                f.write("\n".join(" ".join(map(str, x)) for x in (rg)))
 
     plot = {
         'rg': {
             'arg': 'rg',
             'array': rg,
-            'outfile': 'rg.txt',
             'xlabel': 'Frame No.',
             'ylabel': 'R$_g$ (nm)',
             'ymin': 0,
@@ -263,7 +171,6 @@ Sec struc.
         'rmsd': {
             'arg': 'rmsd',
             'array': rmsd,
-            'outfile': 'rmsd.txt',
             'xlabel': 'Frame No.',
             'ylabel': 'RMSD (nm)',
             'ymin': 0,
@@ -401,34 +308,7 @@ def basic_plot(data, xlabel, ylabel, output):
         ax[1].set_ylabel('ACF')
         ax[1].semilogx(autocorr(row), label=i)
         ax[1].legend()
-    plt.savefig(output, format='pdf', bbox_inches='tight')
-    plt.close()
-
-
-def rmsf_shared_axis(d, out):
-    if glob('{fn}*'.format(fn=d['fname'])):
-        a = [i for i in sorted(glob('{fn}*'.format(fn=d['fname'])))]
-        count = 1
-        for f in a:
-            if os.path.isfile(f):
-                o = os.path.splitext(f)[0]
-                data = np.loadtxt('{o}.txt'.format(o=o))
-                path, prefix = os.path.split('{o}.txt'.format(o=o))
-                ax = plt.subplot(111)
-                plt.plot(data[:, 0], data[:, 1, ],
-                         label='Fraction {count} of 5'.format(count=count))
-                count = count+1
-    if glob('{fn}*'.format(fn=d['all_avg'])):
-        if os.path.isfile(f):
-            o = os.path.splitext(f)[0]
-            data = np.loadtxt('{o}.txt'.format(o=o))
-            path, prefix = os.path.split('{oprefix}.txt'.format(oprefix=o))
-            ax = plt.subplot(111)
-            ax.legend(loc='upper left')
-    plt.xlabel('{label}'.format(label=d['xlabel']))
-    plt.ylabel('{label}'.format(label=d['ylabel']))
-    plt.ylim(d['ymin'], d['ymax'])
-    plt.savefig('{oprefix}/rmsf.pdf'.format(oprefix=out))
+    plt.savefig(output, format='pdf')
     plt.close()
 
 
