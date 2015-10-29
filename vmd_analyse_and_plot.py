@@ -12,6 +12,7 @@ import subprocess
 import shutil
 from mdtat.analysis.rmsd import compute_rmsd
 from mdtat.analysis.rg import compute_rg
+import time
 plt.style.use('ggplot')
 
 
@@ -28,6 +29,14 @@ class DataDirs:
         self.tcl = tcl
         self.data = data
         self.plots = plots
+
+
+def benchmark(function, *args):
+    start = time.time()
+    function(*args)
+    end = time.time()
+    t = end - start
+    return t
 
 
 def init_plotting():
@@ -145,8 +154,10 @@ structural changes
             rmsd = []
             outfile = '{dir}/rmsd.txt'.format(dir=o)
             for traj in tfile:
-                data = compute_rmsd(traj, top)
-                rmsd.append(data)
+                logging.debug(traj)
+                time = benchmark(compute_rmsd, traj, top)
+                logging.debug('Benchmark time for {} was {:.2f} seconds'
+                              .format(traj, time))
             with open(outfile, 'w') as f:
                 f.write("\n".join(" ".join(map(str, x)) for x in (rmsd)))
 
