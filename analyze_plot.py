@@ -10,6 +10,7 @@ import logging
 import argparse
 import subprocess
 import shutil
+from glob import glob
 from mdtat.analysis.rmsd import compute_rmsd
 from mdtat.analysis.rg import compute_rg
 import time
@@ -62,8 +63,9 @@ def main():
             sys.exit(2)
 
     parser = MyParser(
-        description="""Batch analysis script. Takes output from a2 and allows
-for interpretation of RMSD, RMSF, SASA, secondary structure and more.
+        description="""
+Batch analysis script. Calculates several observables including RMSD, and
+radius of gyration.
         """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -130,18 +132,18 @@ structural changes
 
     # File containing a list of simulation replicates. We use this to work out
     # how many times other subroutines need to run. This could be better.
-    dir_list = "../.dir_list.txt"
+    # dir_list = "../.dir_list.txt"
 
-    sims = get_dirs(dir_list)
+    tfile = sorted(glob('traj*.dcd'))
 
     # Checks
-    for f in [dir_list]:
+    for f in tfile:
         check_file(f)
 
     rmsd, rg = ([] for i in range(2))
 
-    top = 'no_water.pdb'
-    tfile = ['no_water_{i}.dcd'.format(i=i) for i in sims]
+    top = 'reduced.pdb'
+    # tfile = ['no_water_{i}.dcd'.format(i=i) for i in sims]
 
     if any([
             args['rmsd'],
@@ -154,11 +156,14 @@ structural changes
             rmsd = []
             outfile = '{dir}/rmsd.txt'.format(dir=o)
             for traj in tfile:
-                logging.debug(traj)
-                time = benchmark(compute_rmsd, traj, top)
+                start_time = time.time()
+                rmsd.append(compute_rmsd(traj, top))
+                benchmark_time = time.time() - start_time
                 logging.debug('Benchmark time for {} was {:.2f} seconds'
-                              .format(traj, time))
+                              .format(traj, benchmark_time))
             with open(outfile, 'w') as f:
+                # This seems to break down when the array has only a single
+                # dimension
                 f.write("\n".join(" ".join(map(str, x)) for x in (rmsd)))
 
         if args['rg'] is True:
@@ -168,6 +173,8 @@ structural changes
                 data = compute_rg(traj, top)
                 rg.append(data)
             with open(outfile, 'w') as f:
+                # This seems to break down when the array has only a single
+                # dimension
                 f.write("\n".join(" ".join(map(str, x)) for x in (rg)))
 
     plot = {
@@ -238,7 +245,7 @@ def delete_dir(dir):
     """
     if os.path.exists(dir):
         shutil.rmtree(dir)
-        logging.debug("Directory {0} found.\nRemoving {0}".format(dir))
+        logging.warn("Directory {0} found.\nRemoving {0}".format(dir))
         os.makedirs(dir)
 
 
@@ -260,7 +267,7 @@ def make_dir(dir):
         logging.debug('Directory %s not found. Creating.' % dir)
         os.makedirs(dir)
     else:
-        logging.debug('Directory %s already exists!' % dir)
+        logging.warn('Directory %s already exists!' % dir)
 
 
 def command_catch_error(command):
@@ -281,19 +288,6 @@ def command_catch_error(command):
         logging.error("Command {com} failed. Please troubleshoot this and try \
                       again".format(com=command))
         sys.exit()
-
-
-def get_dirs(dirlist):
-    sub_dirs = []
-    with open(dirlist) as f:
-        for line in f:
-            line = line.rstrip('\n')
-            line = os.path.splitext(line)[-1].split(".")[-1]
-            line = line.replace('\n', '')
-            sub_dirs.append(line)
-            logging.debug('Subdirectory indices are {index}'
-                          .format(index=line))
-    return sub_dirs
 
 
 def autocorr(x):
