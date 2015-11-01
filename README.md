@@ -13,30 +13,26 @@ trying to achieve. Please email feedback, bugs or suggestions to:
 ## Dependencies
 
 * Python (v2.7+)
-* VMD (1.9.1+). This must be incorporated into your `$PATH` variable for
-    `extract_data.sh` and `vmd_analyse_and_plot.py` to work properly.
+* MDtraj (v1.4.2)
 
 ## How it all works
 
 This project directory is designed to be used at the completion of a run as a
 place to consolidate and process trajectory data generated using the workflow
-MD\_workflow [here](https://github.com/s-gordon/MD_workflow/tree/pythonic). This
-must be cloned **under** the top directory of MD_workflow for everything to work
-properly.
+MD\_workflow [here](https://github.com/s-gordon/MD_workflow/tree/pythonic).
+You'll need to point `compress.py` in the right direction of the trajectory
+files relative to where you run these scripts.
 
 Trajectory processing and analysis are divided into three main phases divided
-into three independent scripts: `extract_data.sh`,
-`compress_and_concatenate_trajectories.py`, and `vmd_analyse_and_plot.py`. The
-order in which these scripts are run is critical.
+into two independent scripts: `compress.py`, and `analyze_plot.py`. The order in
+which these scripts are run is critical.
 
-1. `extract_data.sh`
+1. `compress.py`: Additional options, such as trajectory sub-sampling (a.k.a.
+   stride) can be passed as optional arguments.  For more information try
+   `./compress.py --help`.
 
-1. `compress_and_concatenate_trajectories.py`: Additional options, such as
-   trajectory sub-sampling (a.k.a. stride) can be passed as optional arguments.
-   For more information try `./compress_and_concatenate_trajectories.py --help`.
-
-1. `vmd_analyse_and_plot.py`: Options can be passed as arguments. For more
-   information try `./vmd_analyse_and_plot.py --help`.
+1. `analyze_plot.py`: Options can be passed as arguments. For more information
+   try `./analyse_plot.py --help`.
 
 ## Authorship
 
