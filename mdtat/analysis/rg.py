@@ -6,9 +6,9 @@ import mdtraj as md
 import numpy as np
 
 
-def compute_rg(fname, topname):
+def compute_rg(fname, topname, step=1):
     rg = []
-    for chunk in md.iterload(fname, top=topname, chunk=2):
+    for chunk in md.iterload(fname, top=topname, stride=step):
         rg.append(md.compute_rg(chunk))
     rg = np.concatenate(rg)
     return rg
