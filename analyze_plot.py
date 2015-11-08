@@ -2,6 +2,16 @@
 # AUTHOR:       Shane Gordon
 # CREATED:      2015-06-16 21:46:32
 
+# Note: This package is fairly poorly organised. I should do something about
+# it, but I'm putting it in the TODO list for now
+
+# Set matplotlib to have non-interactive backend
+try:
+    import matplotlib as mpl
+except ImportError:
+    pass
+else:
+    mpl.use('agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -13,13 +23,9 @@ import shutil
 from glob import glob
 from mdtat.analysis.rmsd import compute_rmsd
 from mdtat.analysis.rg import compute_rg
+from mdtat.analysis.sasa import compute_sasa
 import time
 plt.style.use('ggplot')
-
-
-class ShellCommands:
-    def __init__(self, cmd):
-        self.run = cmd
 
 
 class DataDirs:
@@ -87,6 +93,10 @@ Directory to output plots (if generated), such as RMSF, RMSD, etc.
 Optionally, plot output data using matplotlib into output folder 'plot'.
                         """)
 
+    parser.add_argument('--sel', type=str, nargs='+', help="""
+Selection text.
+                        """)
+
     parser.add_argument('--rmsd',  action="store_true", default=False, help="""
 Calculate and plot root-mean squared deviation of selection backbone over the
 time course of the simulation. Useful for measuring structure equilibration.
@@ -97,6 +107,16 @@ time course of the simulation. Useful for measuring structure equilibration.
 Calculate and plot radius of gyration of selection over the
 time course of the trajectory. Useful for measuring
 structural changes
+                        """)
+
+    parser.add_argument('--trajfiles',  nargs='+', metavar="FILE",
+                        help="""
+Trajfiles.
+                        """)
+
+    parser.add_argument('--step', type=int, default=1,
+                        help="""
+Optional step factor for analysis functions.
                         """)
 
     # Argument strings are accessed through the argparser 'args'
@@ -134,21 +154,26 @@ structural changes
     # how many times other subroutines need to run. This could be better.
     # dir_list = "../.dir_list.txt"
 
-    tfile = sorted(glob('traj*.dcd'))
+    if args['trajfiles'] is not None:
+        tfile = args['trajfiles']
+        # Make sure that the filenames match existing files
+        for f in tfile:
+            check_file(f)
+    else:
+        tfile = sorted(glob('traj*.dcd'))
 
-    # Checks
-    for f in tfile:
-        check_file(f)
-
-    rmsd, rg = ([] for i in range(2))
+    rmsd, rg, sasa = ([] for i in range(3))
 
     top = 'reduced.pdb'
-    # tfile = ['no_water_{i}.dcd'.format(i=i) for i in sims]
 
     if any([
             args['rmsd'],
-            args['rg']
+            args['rg'],
+            args['sasa']
     ]) is True:
+
+        sel = " ".join(args['sel'])
+        step = args['step']
         make_dir(out_dir.data)
         o = out_dir.data
 
@@ -157,7 +182,7 @@ structural changes
             outfile = '{dir}/rmsd.txt'.format(dir=o)
             for traj in tfile:
                 start_time = time.time()
-                rmsd.append(compute_rmsd(traj, top))
+                rmsd.append(compute_rmsd(traj, top, sel, step))
                 benchmark_time = time.time() - start_time
                 logging.debug('Benchmark time for {} was {:.2f} seconds'
                               .format(traj, benchmark_time))
@@ -170,12 +195,23 @@ structural changes
             rg = []
             outfile = '{dir}/rg.txt'.format(dir=o)
             for traj in tfile:
-                data = compute_rg(traj, top)
+                data = compute_rg(traj, top, step=step)
                 rg.append(data)
             with open(outfile, 'w') as f:
                 # This seems to break down when the array has only a single
                 # dimension
                 f.write("\n".join(" ".join(map(str, x)) for x in (rg)))
+
+        if args['sasa'] is True:
+            sasa = []
+            outfile = '{dir}/sasa.txt'.format(dir=o)
+            for traj in tfile:
+                data = compute_sasa(traj, top)
+                sasa.append(data)
+            with open(outfile, 'w') as f:
+                # This seems to break down when the array has only a single
+                # dimension
+                f.write("\n".join(" ".join(map(str, x)) for x in (sasa)))
 
     plot = {
         'rg': {
@@ -193,18 +229,23 @@ structural changes
             'ylabel': 'RMSD (nm)',
             'ymin': 0,
             'ofile': 'rmsd.pdf'
+        },
+        'sasa': {
+            'arg': 'sasa',
+            'array': sasa,
+            'xlabel': 'Frame No.',
+            'ylabel': 'SASA (nm$^3$)',
+            'ymin': 0,
+            'ofile': 'sasa.pdf'
         }
+
     }
 
     if args['plot'] is False:
-        logging.debug("""
-Optional plotting defaulting to False. Plot output
-using the '--plot' flag.
-                      """)
+        logging.debug("Optional plotting defaulting to False." +
+                      "Plot output using the '--plot' flag.")
     elif args['plot'] is True:
-        logging.debug("""
-Optional plotting set to True.
-                      """)
+        logging.debug("Optional plotting set to True.")
         make_dir(out_dir.plots)
         d = out_dir.plots
         for key, value in plot.iteritems():
@@ -303,11 +344,10 @@ def basic_plot(data, xlabel, ylabel, output):
     f, ax = plt.subplots(2)
     count = np.arange(0, len(data))
     for row, i in zip(data, count):
-        logging.debug(len(row))
         ax[0].set_xlabel(xlabel)
         ax[0].set_ylabel(ylabel)
         ax[0].plot(row, label=i)
-        ax[0].set_ylim(0,)
+        # ax[0].set_ylim(0,)
         ax[0].legend()
         ax[1].set_xlabel(xlabel)
         ax[1].set_ylabel('ACF')
