@@ -111,33 +111,66 @@ def main():
         check_dir(dir)
         traj_list = sorted(glob('{}/OutputFiles/[0-9]*.dcd'.format(dir)))
 
+        # if len(traj_list) is not 0:
+        #     logging.info('Concatenating trajectory files under {} into {}.'
+        #                  .format(dir, combined))
+        #     for traj in traj_list:
+        #         start_time = time.time()
+        #         try:
+        #             t = md.load(traj, top=top, stride=stride,
+        #                         atom_indices=indices)
+        #             if not os.path.isfile(combined):
+        #                 try:
+        #                     t.save_dcd(combined)
+        #                     logger.debug('Combined output file {} not found.'
+        #                                  .format(combined))
+        #                     logger.debug('Creating {}.'.format(combined))
+        #                 except Exception:
+        #                     sys.exit(2)
+        #             elif os.path.isfile(combined):
+        #                 # This would be a lot faster if we didn't have to keep
+        #                 # loading the combined trajectory for each traj
+        #                 c = md.load(combined, top=top)
+        #                 c = c.join(t)
+        #                 c.save_dcd(combined)
+        #         except:
+        #             pass
+        #         elapsed_time = time.time() - start_time
+        #         logger.debug(('Elapsed time for {} was {:.2f} seconds').
+        #                      format(traj.split('/')[-1], elapsed_time))
+        # elif len(traj_list) is 0:
+        #     logger.warn('Directory {} does not contain any trajectory files.'
+        #                 .format(dir))
+        #     logger.warn('Skipping {}'.format(dir))
+
         if len(traj_list) is not 0:
             logging.info('Concatenating trajectory files under {} into {}.'
                          .format(dir, combined))
-            for traj in traj_list:
-                start_time = time.time()
-                try:
-                    t = md.load(traj, top=top, stride=stride,
-                                atom_indices=indices)
-                    if not os.path.isfile(combined):
-                        try:
-                            t.save_dcd(combined)
-                            logger.debug('Combined output file {} not found.'
-                                         .format(combined))
-                            logger.debug('Creating {}.'.format(combined))
-                        except Exception:
-                            sys.exit(2)
-                    elif os.path.isfile(combined):
-                        # This would be a lot faster if we didn't have to keep
-                        # loading the combined trajectory for each traj
-                        c = md.load(combined, top=top)
-                        c = c.join(t)
-                        c.save_dcd(combined)
-                except:
-                    pass
-                elapsed_time = time.time() - start_time
-                logger.debug(('Elapsed time for {} was {:.2f} seconds').
-                             format(traj.split('/')[-1], elapsed_time))
+            start_time = time.time()
+            try:
+                t = md.load(traj_list, top=top, stride=stride,
+                            atom_indices=indices)
+                if not os.path.isfile(combined):
+                    try:
+                        t.save_dcd(combined)
+                        logger.debug('Combined output file {} not found.'
+                                        .format(combined))
+                        logger.debug('Creating {}.'.format(combined))
+                    except Exception:
+                        sys.exit(2)
+                elif os.path.isfile(combined):
+                    # This would be a lot faster if we didn't have to keep
+                    # loading the combined trajectory for each traj
+                    c = md.load(combined, top=top)
+                    c = c.join(t)
+                    c.save_dcd(combined)
+            except:
+                pass
+            elapsed_time = time.time() - start_time
+            logger.debug(('Elapsed time for {} was {:.2f} seconds').
+                            format(traj_list, elapsed_time))
+                            # format(traj.split('/')[-1], elapsed_time))
+
         elif len(traj_list) is 0:
             logger.warn('Directory {} does not contain any trajectory files.'
                         .format(dir))
