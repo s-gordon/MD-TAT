@@ -8,12 +8,19 @@ Beta 0.10
 
 You are free to use it, but it may not be entirely suitable for what you are
 trying to achieve. Please email feedback, bugs or suggestions to:
-<a href="mailto:se2gordon@students.latrobe.edu.au">se2gordon@students.latrobe.edu.au</a>.
+[se2gordon@students.latrobe.edu.au](mailto:se2gordon@students.latrobe.edu.au).
 
 ## Dependencies
 
 * Python (v2.7+)
-* MDtraj (v1.4.2)
+* MDtraj
+* Matplotlib
+
+## Installation
+
+```
+python setup.py install
+```
 
 ## How it all works
 
@@ -36,4 +43,4 @@ which these scripts are run is critical.
 
 ## Authorship
 
-* Shane Gordon (<a href="mailto:se2gordon@students.latrobe.edu.au">se2gordon@students.latrobe.edu.au</a>)
+* Shane Gordon [se2gordon@students.latrobe.edu.au](mailto:se2gordon@students.latrobe.edu.au).

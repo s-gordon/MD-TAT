@@ -61,6 +61,106 @@ def check_dict(dict):
             return True
 
 
+def check_dir(dir):
+    """
+    Check whether directory dir exists.
+    If true continue. Else exit.
+    """
+    if not os.path.isdir(dir):
+        logging.error('Path %s not found', dir)
+        logging.error('Aborting')
+        sys.exit()
+
+
+def check_file(file):
+    """
+    Check whether directory dir exists.
+    If true continue. Else exit.
+    """
+    if not os.path.isfile(file):
+        logging.error('Path %s not found', file)
+        logging.error('Aborting')
+        sys.exit()
+
+
+def delete_dir(dir):
+    """
+    Check whether directory dir exists.
+    If true delete and remake.
+    """
+    if os.path.exists(dir):
+        shutil.rmtree(dir)
+        logging.warn("Directory {0} found.\nRemoving {0}".format(dir))
+        os.makedirs(dir)
+
+
+def check_cmd(cmd):
+    try:
+        subprocess.check_call(['%s' % cmd], shell=True)
+    except subprocess.CalledProcessError:
+        pass  # handle errors in the called executable
+    except OSError:
+        logging.error('Command %s not found' % cmd)
+        sys.exit()
+
+
+def make_dir(dir):
+    """
+    If directory does not exist, make it
+    """
+    if not os.path.exists(dir):
+        logging.debug('Directory %s not found. Creating.' % dir)
+        os.makedirs(dir)
+    else:
+        logging.warn('Directory %s already exists!' % dir)
+
+
+def command_catch_error(command):
+    """
+    Wrapper for shell commands. Stdin/stdout returned.
+    """
+    try:
+        p = subprocess.Popen(command, shell=True,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT)
+        p.wait()
+        return p.communicate()
+    except OSError as e:
+        """
+        If this fails, report the error.
+        """
+        logging.error(e)
+        logging.error("Command {com} failed. Please troubleshoot this and try \
+                      again".format(com=command))
+        sys.exit()
+
+
+def autocorr(x):
+    "Compute an autocorrelation with numpy"
+    x = x - np.mean(x)
+    result = np.correlate(x, x, mode='full')
+    result = result[result.size//2:]
+    return result / result[0]
+
+
+def basic_plot(data, xlabel, ylabel, output):
+    logging.debug('Attempting to plot to %s' % output)
+    f, ax = plt.subplots(2)
+    count = np.arange(0, len(data))
+    for row, i in zip(data, count):
+        ax[0].set_xlabel(xlabel)
+        ax[0].set_ylabel(ylabel)
+        ax[0].plot(row, label=i)
+        # ax[0].set_ylim(0,)
+        ax[0].legend()
+        ax[1].set_xlabel(xlabel)
+        ax[1].set_ylabel('ACF')
+        ax[1].semilogx(autocorr(row), label=i)
+        ax[1].legend()
+    plt.savefig(output, format='pdf')
+    plt.close()
+
+
 def main():
     class MyParser(argparse.ArgumentParser):
         def error(self, message):
@@ -255,106 +355,6 @@ Optional step factor for analysis functions.
                 ylabel = value['ylabel']
                 f = '{root}/{f}'.format(root=d, f=value['ofile'])
                 basic_plot(data, xlabel, ylabel, f)
-
-
-def check_dir(dir):
-    """
-    Check whether directory dir exists.
-    If true continue. Else exit.
-    """
-    if not os.path.isdir(dir):
-        logging.error('Path %s not found', dir)
-        logging.error('Aborting')
-        sys.exit()
-
-
-def check_file(file):
-    """
-    Check whether directory dir exists.
-    If true continue. Else exit.
-    """
-    if not os.path.isfile(file):
-        logging.error('Path %s not found', file)
-        logging.error('Aborting')
-        sys.exit()
-
-
-def delete_dir(dir):
-    """
-    Check whether directory dir exists.
-    If true delete and remake.
-    """
-    if os.path.exists(dir):
-        shutil.rmtree(dir)
-        logging.warn("Directory {0} found.\nRemoving {0}".format(dir))
-        os.makedirs(dir)
-
-
-def check_cmd(cmd):
-    try:
-        subprocess.check_call(['%s' % cmd], shell=True)
-    except subprocess.CalledProcessError:
-        pass  # handle errors in the called executable
-    except OSError:
-        logging.error('Command %s not found' % cmd)
-        sys.exit()
-
-
-def make_dir(dir):
-    """
-    If directory does not exist, make it
-    """
-    if not os.path.exists(dir):
-        logging.debug('Directory %s not found. Creating.' % dir)
-        os.makedirs(dir)
-    else:
-        logging.warn('Directory %s already exists!' % dir)
-
-
-def command_catch_error(command):
-    """
-    Wrapper for shell commands. Stdin/stdout returned.
-    """
-    try:
-        p = subprocess.Popen(command, shell=True,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT)
-        p.wait()
-        return p.communicate()
-    except OSError as e:
-        """
-        If this fails, report the error.
-        """
-        logging.error(e)
-        logging.error("Command {com} failed. Please troubleshoot this and try \
-                      again".format(com=command))
-        sys.exit()
-
-
-def autocorr(x):
-    "Compute an autocorrelation with numpy"
-    x = x - np.mean(x)
-    result = np.correlate(x, x, mode='full')
-    result = result[result.size//2:]
-    return result / result[0]
-
-
-def basic_plot(data, xlabel, ylabel, output):
-    logging.debug('Attempting to plot to %s' % output)
-    f, ax = plt.subplots(2)
-    count = np.arange(0, len(data))
-    for row, i in zip(data, count):
-        ax[0].set_xlabel(xlabel)
-        ax[0].set_ylabel(ylabel)
-        ax[0].plot(row, label=i)
-        # ax[0].set_ylim(0,)
-        ax[0].legend()
-        ax[1].set_xlabel(xlabel)
-        ax[1].set_ylabel('ACF')
-        ax[1].semilogx(autocorr(row), label=i)
-        ax[1].legend()
-    plt.savefig(output, format='pdf')
-    plt.close()
 
 
 if __name__ == '__main__':
