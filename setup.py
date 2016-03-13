@@ -19,8 +19,8 @@ config = {
     'author_email': 'se2gordon@students.latrobe.edu.au',
     'version': '0.1',
     'install_requires': required,
-    'packages': ['mdtat'],
-    'scripts': ['mdtat/analyse.py', 'mdtat/compress.py'],
+    'packages': ['mdtat', 'mdtat.analysis'],
+    'scripts': ['mdtat/scripts/analyse.py', 'mdtat/scripts/compress.py'],
     'name': 'mdtat'
 }
 

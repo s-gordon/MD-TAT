@@ -13,7 +13,6 @@ except ImportError:
 else:
     mpl.use('agg')
 import matplotlib.pyplot as plt
-import numpy as np
 import os
 import sys
 import logging
@@ -21,11 +20,62 @@ import argparse
 import subprocess
 import shutil
 from glob import glob
+# from mdtat.analysis.plot import init_plotting
+from mdtat.analysis.plot import basic_plot
 from mdtat.analysis.rmsd import compute_rmsd
 from mdtat.analysis.rg import compute_rg
-from mdtat.analysis.sasa import compute_sasa
+# from mdtat.analysis.sasa import compute_sasa
+from mdtat.analysis.log import MyParser
+from mdtat.analysis.log import set_verbosity
 import time
 plt.style.use('ggplot')
+
+parser = MyParser(
+    description="""
+Batch analysis script. Calculates several observables including RMSD, and
+radius of gyration.
+    """,
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('-v', '--verbose',  action="store_true", help="""
+Increase verbosity.
+                    """)
+parser.add_argument('-d', '--raw-data',  action="store_true",
+                    default='data', help="""
+Directory to output raw data, such as RMSF, RMSD, etc.
+                    """)
+parser.add_argument('-p', '--plot-dir',  action="store_true",
+                    default='plots', help="""
+Directory to output plots (if generated), such as RMSF, RMSD, etc.
+                    """)
+parser.add_argument('--plot',  action="store_true", help="""
+Optionally, plot output data using matplotlib into output folder 'plot'.
+                    """)
+parser.add_argument('--sel', type=str, nargs='+', help="""
+Selection text.
+                    """)
+parser.add_argument('--rmsd',  action="store_true", default=False, help="""
+Calculate and plot root-mean squared deviation of selection backbone over the
+time course of the simulation. Useful for measuring structure equilibration.
+                    """)
+parser.add_argument('--rg',  action="store_true", default=False,
+                    help="""
+Calculate and plot radius of gyration of selection over the
+time course of the trajectory. Useful for measuring
+structural changes
+                    """)
+parser.add_argument('--trajfiles',  nargs='+', metavar="FILE",
+                    help="""
+Trajfiles.
+                    """)
+parser.add_argument('--step', type=int, default=1,
+                    help="""
+Optional step factor for analysis functions.
+                    """)
+
+# Argument strings are accessed through the argparser 'args'
+args = vars(parser.parse_args())
+
+set_verbosity(MyParser, args['verbose'])
 
 
 class DataDirs:
@@ -44,12 +94,6 @@ def benchmark(function, *args):
     end = time.time()
     t = end - start
     return t
-
-
-def init_plotting():
-
-    plt.rcParams['figure.figsize'] = (8, 3)
-    plt.rcParams['figure.autolayout'] = True
 
 
 def check_dict(dict):
@@ -135,116 +179,7 @@ def command_catch_error(command):
         sys.exit()
 
 
-def autocorr(x):
-    "Compute an autocorrelation with numpy"
-    x = x - np.mean(x)
-    result = np.correlate(x, x, mode='full')
-    result = result[result.size//2:]
-    return result / result[0]
-
-
-def basic_plot(data, xlabel, ylabel, output):
-    logging.debug('Attempting to plot to %s' % output)
-    f, ax = plt.subplots(2)
-    count = np.arange(0, len(data))
-    for row, i in zip(data, count):
-        ax[0].set_xlabel(xlabel)
-        ax[0].set_ylabel(ylabel)
-        ax[0].plot(row, label=i)
-        # ax[0].set_ylim(0,)
-        ax[0].legend()
-        ax[1].set_xlabel(xlabel)
-        ax[1].set_ylabel('ACF')
-        ax[1].semilogx(autocorr(row), label=i)
-        ax[1].legend()
-    plt.savefig(output, format='pdf')
-    plt.close()
-
-
 def main():
-    class MyParser(argparse.ArgumentParser):
-        def error(self, message):
-            sys.stderr.write('error: %s\n' % message)
-            self.print_help()
-            sys.exit(2)
-
-    parser = MyParser(
-        description="""
-Batch analysis script. Calculates several observables including RMSD, and
-radius of gyration.
-        """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-    parser.add_argument('-v', '--verbose',  action="store_true", help="""
-Increase verbosity.
-                        """)
-
-    parser.add_argument('-d', '--raw-data',  action="store_true",
-                        default='data', help="""
-Directory to output raw data, such as RMSF, RMSD, etc.
-                        """)
-
-    parser.add_argument('-p', '--plot-dir',  action="store_true",
-                        default='plots', help="""
-Directory to output plots (if generated), such as RMSF, RMSD, etc.
-                        """)
-
-    parser.add_argument('--plot',  action="store_true", help="""
-Optionally, plot output data using matplotlib into output folder 'plot'.
-                        """)
-
-    parser.add_argument('--sel', type=str, nargs='+', help="""
-Selection text.
-                        """)
-
-    parser.add_argument('--rmsd',  action="store_true", default=False, help="""
-Calculate and plot root-mean squared deviation of selection backbone over the
-time course of the simulation. Useful for measuring structure equilibration.
-                        """)
-
-    parser.add_argument('--rg',  action="store_true", default=False,
-                        help="""
-Calculate and plot radius of gyration of selection over the
-time course of the trajectory. Useful for measuring
-structural changes
-                        """)
-
-    parser.add_argument('--trajfiles',  nargs='+', metavar="FILE",
-                        help="""
-Trajfiles.
-                        """)
-
-    parser.add_argument('--step', type=int, default=1,
-                        help="""
-Optional step factor for analysis functions.
-                        """)
-
-    # Argument strings are accessed through the argparser 'args'
-    args = vars(parser.parse_args())
-
-    # Return argparse help if no arguments are specified. Catches situations
-    # where only verbosity is set and does the same thing.
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(1)
-    elif len(sys.argv) == 2:
-        if args['verbose'] is True:
-            parser.print_help()
-            sys.exit(1)
-
-    # Logger-control of feed-out
-    # Normal output is prescribed to info
-    # Debug output (accessed through -v/--verbose) is prescribed to debug
-    """
-    If verbosity set, change logging to debug.
-    Else leave at info
-    """
-    if args['verbose'] is True:
-        logging.basicConfig(format='%(levelname)s:\t%(message)s',
-                            level=logging.DEBUG)
-    else:
-        logging.basicConfig(format='%(levelname)s:\t%(message)s',
-                            level=logging.INFO)
 
     # Define data output directories
     # Access using out_dir.data, out_dir.plots
@@ -262,14 +197,14 @@ Optional step factor for analysis functions.
     else:
         tfile = sorted(glob('traj*.dcd'))
 
-    rmsd, rg, sasa = ([] for i in range(3))
+    rmsd, rg = ([] for i in range(2))
 
     top = 'reduced.pdb'
 
     if any([
             args['rmsd'],
             args['rg'],
-            args['sasa']
+            # args['sasa']
     ]) is True:
 
         sel = " ".join(args['sel'])
@@ -302,16 +237,16 @@ Optional step factor for analysis functions.
                 # dimension
                 f.write("\n".join(" ".join(map(str, x)) for x in (rg)))
 
-        if args['sasa'] is True:
-            sasa = []
-            outfile = '{dir}/sasa.txt'.format(dir=o)
-            for traj in tfile:
-                data = compute_sasa(traj, top)
-                sasa.append(data)
-            with open(outfile, 'w') as f:
-                # This seems to break down when the array has only a single
-                # dimension
-                f.write("\n".join(" ".join(map(str, x)) for x in (sasa)))
+        # if args['sasa'] is True:
+        #     sasa = []
+        #     outfile = '{dir}/sasa.txt'.format(dir=o)
+        #     for traj in tfile:
+        #         data = compute_sasa(traj, top)
+        #         sasa.append(data)
+        #     with open(outfile, 'w') as f:
+        #         # This seems to break down when the array has only a single
+        #         # dimension
+        #         f.write("\n".join(" ".join(map(str, x)) for x in (sasa)))
 
     plot = {
         'rg': {
@@ -330,14 +265,14 @@ Optional step factor for analysis functions.
             'ymin': 0,
             'ofile': 'rmsd.pdf'
         },
-        'sasa': {
-            'arg': 'sasa',
-            'array': sasa,
-            'xlabel': 'Frame No.',
-            'ylabel': 'SASA (nm$^3$)',
-            'ymin': 0,
-            'ofile': 'sasa.pdf'
-        }
+        # 'sasa': {
+        #     'arg': 'sasa',
+        #     'array': sasa,
+        #     'xlabel': 'Frame No.',
+        #     'ylabel': 'SASA (nm$^3$)',
+        #     'ymin': 0,
+        #     'ofile': 'sasa.pdf'
+        # }
 
     }
 
