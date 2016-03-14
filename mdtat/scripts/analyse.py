@@ -21,12 +21,12 @@ import subprocess
 import shutil
 from glob import glob
 # from mdtat.analysis.plot import init_plotting
-from mdtat.analysis.plot import basic_plot
+from mdtat.utils.plot import basic_plot
 from mdtat.analysis.rmsd import compute_rmsd
 from mdtat.analysis.rg import compute_rg
 # from mdtat.analysis.sasa import compute_sasa
-from mdtat.analysis.log import MyParser
-from mdtat.analysis.log import set_verbosity
+from mdtat.utils.log import MyParser
+from mdtat.utils.log import set_verbosity
 import time
 plt.style.use('ggplot')
 
@@ -289,7 +289,8 @@ def main():
                 xlabel = value['xlabel']
                 ylabel = value['ylabel']
                 f = '{root}/{f}'.format(root=d, f=value['ofile'])
-                basic_plot(data, xlabel, ylabel, f)
+                log = basic_plot(data, xlabel, ylabel, f)
+                logging.debug(log)
 
 
 if __name__ == '__main__':

@@ -31,7 +31,7 @@ parser.add_argument('--stride', type=int, default=1,
 parser.add_argument('--topology', type=str, required=True,
                     help="Topology file.")
 parser.add_argument('-sel', '--selection', type=str, required=True,
-                    help="""
+                    default='heavy', help="""
                     Reduced selection text. Must conform to MDTraj rules.
                     """)
 
@@ -77,9 +77,9 @@ def delete_file(file):
 
 
 def get_indices(topology, sel):
-    t = md.load(topology)
+    t = md.load(topology).topology
     try:
-        indices = t.topology.select(sel)
+        indices = t.select_atom_indices(selection=sel)
         return indices
     except ValueError:
         logging.error('Atom selection invalid.\nTry something more sensible.')
@@ -111,38 +111,6 @@ def main():
         check_dir(dir)
         traj_list = sorted(glob('{}/OutputFiles/[0-9]*.dcd'.format(dir)))
 
-        # if len(traj_list) is not 0:
-        #     logging.info('Concatenating trajectory files under {} into {}.'
-        #                  .format(dir, combined))
-        #     for traj in traj_list:
-        #         start_time = time.time()
-        #         try:
-        #             t = md.load(traj, top=top, stride=stride,
-        #                         atom_indices=indices)
-        #             if not os.path.isfile(combined):
-        #                 try:
-        #                     t.save_dcd(combined)
-        #                     logger.debug('Combined output file {} not found.'
-        #                                  .format(combined))
-        #                     logger.debug('Creating {}.'.format(combined))
-        #                 except Exception:
-        #                     sys.exit(2)
-        #             elif os.path.isfile(combined):
-        #                 # This would be a lot faster if we didn't have to keep
-        #                 # loading the combined trajectory for each traj
-        #                 c = md.load(combined, top=top)
-        #                 c = c.join(t)
-        #                 c.save_dcd(combined)
-        #         except:
-        #             pass
-        #         elapsed_time = time.time() - start_time
-        #         logger.debug(('Elapsed time for {} was {:.2f} seconds').
-        #                      format(traj.split('/')[-1], elapsed_time))
-        # elif len(traj_list) is 0:
-        #     logger.warn('Directory {} does not contain any trajectory files.'
-        #                 .format(dir))
-        #     logger.warn('Skipping {}'.format(dir))
-
         if len(traj_list) is not 0:
             logging.info('Concatenating trajectory files under {} into {}.'
                          .format(dir, combined))
@@ -154,7 +122,7 @@ def main():
                     try:
                         t.save_dcd(combined)
                         logger.debug('Combined output file {} not found.'
-                                        .format(combined))
+                                     .format(combined))
                         logger.debug('Creating {}.'.format(combined))
                     except Exception:
                         sys.exit(2)
@@ -168,8 +136,8 @@ def main():
                 pass
             elapsed_time = time.time() - start_time
             logger.debug(('Elapsed time for {} was {:.2f} seconds').
-                            format(traj_list, elapsed_time))
-                            # format(traj.split('/')[-1], elapsed_time))
+                         format(traj_list, elapsed_time))
+            # format(traj.split('/')[-1], elapsed_time))
 
         elif len(traj_list) is 0:
             logger.warn('Directory {} does not contain any trajectory files.'

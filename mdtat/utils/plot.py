@@ -20,7 +20,7 @@ def autocorr(x):
 
 
 def basic_plot(data, xlabel, ylabel, output):
-    logging.debug('Attempting to plot to %s' % output)
+    log = 'Attempting to plot to {}'.format(output)
     f, ax = plt.subplots(2)
     count = np.arange(0, len(data))
     for row, i in zip(data, count):
@@ -35,3 +35,4 @@ def basic_plot(data, xlabel, ylabel, output):
         ax[1].legend()
     plt.savefig(output, format='pdf')
     plt.close()
+    return log
