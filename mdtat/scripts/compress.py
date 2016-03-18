@@ -18,9 +18,7 @@ class MyParser(argparse.ArgumentParser):
         self.print_help()
         sys.exit(2)
 
-parser = MyParser(description="""
-TODO
-                  """,
+parser = MyParser(description="TODO",
                   formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--verbose', action="store_true",
                     help="Increase verbosity")
@@ -31,9 +29,16 @@ parser.add_argument('--stride', type=int, default=1,
 parser.add_argument('--topology', type=str, required=True,
                     help="Topology file.")
 parser.add_argument('-sel', '--selection', type=str, required=True,
-                    default='heavy', help="""
-                    Reduced selection text. Must conform to MDTraj rules.
-                    """)
+                    default='protein', help="Reduced selection text. Must \
+                    conform to MDTraj rules. Examples include: \
+                    'protein', \
+                    'water', \
+                    'resSeq 35', \
+                    'water and name O', \
+                    'mass 5.5 to 20', \
+                    'resname =~ 'C.*'', \
+                    'protein and (backbone or resname ALA)' \
+                    ")
 
 # Argument strings are accessed through the argparser 'args'
 args = vars(parser.parse_args())
@@ -79,7 +84,7 @@ def delete_file(file):
 def get_indices(topology, sel):
     t = md.load(topology).topology
     try:
-        indices = t.select_atom_indices(selection=sel)
+        indices = t.select(sel)
         return indices
     except ValueError:
         logging.error('Atom selection invalid.\nTry something more sensible.')
