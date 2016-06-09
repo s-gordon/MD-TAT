@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # Author: Shane Gordon
-# Date Created:
 
 try:
     from setuptools import setup
@@ -12,11 +11,12 @@ with open('requirements.txt') as f:
 
 
 config = {
-    'description': 'MDTAT: Molecular Dynamic Trajectory Analysis Tool',
+    'description': 'MD-TAT: Molecular Dynamics Trajectory Analysis Tool',
     'author': 'Shane Gordon',
-    'url': 'github.com/s-gordon/mdtat.git',
-    'download_url': 'Where to download it.',
+    'url': 'https://github.com/s-gordon/md-tat',
+    'download_url': 'https://github.com/s-gordon/md-tat',
     'author_email': 'se2gordon@students.latrobe.edu.au',
+    'maintainer': 'Shane Gordon',
     'version': '0.1',
     'install_requires': required,
     'packages': ['mdtat', 'mdtat.analysis', 'mdtat.utils'],

@@ -2,7 +2,7 @@
 
 ## Version
 
-Beta 0.10
+Alpha 0.10
 
 ## Introduction and Foreword
 
@@ -18,7 +18,16 @@ trying to achieve. Please email feedback, bugs or suggestions to:
 
 ## Installation
 
+The best way is using pip:
+
 ```
+pip install mdtat
+```
+
+Alternatively, clone the repo from github and install using distutils:
+
+```
+git clone https://github.com/s-gordon/md-tat
 python setup.py install
 ```
 
