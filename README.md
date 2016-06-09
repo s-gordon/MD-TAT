@@ -29,6 +29,7 @@ Alternatively, clone the repo from github and install using distutils:
 
 ```
 git clone https://github.com/s-gordon/md-tat
+cd md-tat
 python setup.py install
 ```
 
@@ -36,9 +37,9 @@ python setup.py install
 
 This project directory is designed to be used at the completion of a run as a
 place to consolidate and process trajectory data generated using the workflow
-MD\_workflow [here](https://github.com/s-gordon/MD_workflow/tree/pythonic).
-You'll need to point `compress.py` in the right direction of the trajectory
-files relative to where you run these scripts.
+[MD_workflow](https://github.com/s-gordon/MD_workflow/tree/pythonic).  You'll
+need to point `compress.py` in the right direction of the trajectory files
+relative to where you run these scripts.
 
 Trajectory processing and analysis are divided into three main phases divided
 into two independent scripts: `compress.py`, and `analyze_plot.py`. The order in
