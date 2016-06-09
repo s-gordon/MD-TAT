@@ -1,4 +1,5 @@
 # Molecular Dynamics Trajectory Analysis Tools (MD-TAT)
+[![PyPI version](https://badge.fury.io/py/mdtat.svg)](https://badge.fury.io/py/mdtat)
 
 ## Version
 
